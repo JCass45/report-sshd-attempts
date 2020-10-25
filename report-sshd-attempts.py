@@ -50,9 +50,15 @@ def get_location_from_ips(ips):
 def filter_empty_locations(locations):
     return list(filter(lambda location: location.get('country') != None, locations))
 
-
-def send_metrics_to_telegraf(statsd_client, metrics):
-    pass
+def combine_duplicated_regions_with_different_lat_long(locations):
+    already_seen_locations = {}
+    for index, location in enumerate(locations):
+        if location.get("regionName") not in already_seen_locations:
+            already_seen_locations[location.get("regionName")] = [location.get("lat"), location.get("lon")]
+        else:
+            locations[index]["lat"] = already_seen_locations[location.get("regionName")][0]
+            locations[index]["lon"] = already_seen_locations[location.get("regionName")][1]
+    return locations
 
 
 def chunker(seq, size):
@@ -64,7 +70,8 @@ if __name__ == "__main__":
         host="localhost", port=8125, prefix="hyrule", maxudpsize=512, ipv6=False
     )
     connection_attempts = read_auth_log_file_last_24_hours()
-    locations = filter_empty_locations(get_location_from_ips(connection_attempts))
+    locations = combine_duplicated_regions_with_different_lat_long(filter_empty_locations(get_location_from_ips(connection_attempts)))
+
     for location in locations:
         pprint(location)
         try:
